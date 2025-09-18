@@ -6,60 +6,13 @@ import pandas as pd
 import plotly.express as px
 
 # ---------------- Page setup & styling ----------------
+# Original CSS style
 st.markdown("""
 <style>
-/* ---------- GLOBAL STYLING ---------- */
-html, body, [class*="css"] {
-    color: #2A2A2A;
-    font-family: 'Arial', sans-serif;
-    line-height: 1.6;
-}
-
-/* ---------- PAGE PADDING ---------- */
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    padding-left: 2rem;
-    padding-right: 2rem;
-}
-
-/* ---------- HEADINGS ---------- */
-h1, h2, h3 {
-    font-weight: 700;
-    text-align: center;
-    color: #2A2A2A;
-}
-
-/* ---------- PLOTLY CHART MARGINS ---------- */
-.stPlotlyChart {
-    margin-top: 1rem;
-    margin-bottom: 2rem;
-}
-
-/* ---------- MOBILE OPTIMIZATION ---------- */
-@media screen and (max-width: 768px) {
-    .block-container {
-        padding-left: 0.8rem !important;
-        padding-right: 0.8rem !important;
-    }
-
-    h1 {
-        font-size: 1.4rem !important;
-    }
-
-    h2 {
-        font-size: 1.2rem !important;
-    }
-
-    h3 {
-        font-size: 1.05rem !important;
-    }
-
-    .stPlotlyChart {
-        margin-left: -10px;
-        margin-right: -10px;
-    }
-}
+.block-container { padding-top: 1.2rem; padding-bottom: 2rem; }
+.stPlotlyChart { margin-top: .25rem; }
+html, body, [class*="css"] { color: #2A2A2A; }
+h1, h2, h3 { font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
 
