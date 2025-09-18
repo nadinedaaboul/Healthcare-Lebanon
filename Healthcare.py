@@ -110,7 +110,7 @@ Use the **Top N** slider to view the most accessible areas.
 # ---- Interactivity (Top N + optional highlight) ----
 c1, c2 = st.columns([2,2])
 with c1:
-    top_n_needs = st.slider("Top N (Special Needs)", 1, len(counts_needs), 10, key="topN_needs")
+    top_n_needs = st.slider("Top N Areas (Special Needs)", 1, min(len(counts_needs), 25), 10)
 with c2:
     highlight_needs = st.multiselect("Highlight areas (Special Needs)", counts_needs["Area"], key="hi_needs")
 
@@ -122,8 +122,14 @@ fig_needs = px.bar(
     counts_needs_f.sort_values("count"),
     x="count", y="Area", orientation="h", text="count",
     color=counts_needs_f["__color"].map(color_map),
-    color_discrete_sequence=px.colors.qualitative.Plotly
+    color_discrete_sequence=px.colors.qualitative.Plotly)
+
+fig_needs.update_traces(
+    textposition="auto",
+    cliponaxis=False
 )
+
+
 fig_needs.update_traces(textposition="outside", cliponaxis=False)
 fig_needs.update_layout(
     title={"text":"Areas with Special Needs Care Centers in Lebanon","x":0.5,"xanchor":"center"},
@@ -137,6 +143,8 @@ fig_needs.update_layout(
     yaxis=dict(showgrid=False, title_standoff=10),
 )
 st.plotly_chart(fig_needs, use_container_width=True)
+
+
 
 st.markdown("### Interpretation")
 st.markdown("""
@@ -180,7 +188,8 @@ Use the **Top N** slider to see areas with the most first aid centers. The **red
 
 d1, d2 = st.columns([2,2])
 with d1:
-    top_n_aid = st.slider("Top N (First Aid)", 1, len(counts_aid), 10, key="topN_aid")
+    top_n_aid = st.slider("Top N (First Aid)", 1, min(len(counts_aid), 25), 10)
+
 with d2:
     highlight_aid = st.multiselect("Highlight areas (First Aid)", counts_aid["Area"], key="hi_aid")
 
@@ -194,6 +203,13 @@ counts_aid_f.sort_values("count"),
 x="count", y="Area", orientation="h", text="count",
 color_discrete_sequence=["#E53935"] # Red
 )
+
+fig_aid.update_traces(
+    textposition="auto",
+    cliponaxis=False
+)
+
+
 fig_aid.update_traces(textposition="outside", cliponaxis=False)
 fig_aid.update_layout(
 title={"text":"First Aid Centers (Ranked by Area)","x":0.5},
@@ -206,6 +222,8 @@ xaxis=dict(gridcolor="rgba(0,0,0,0.08)", zeroline=False),
 yaxis=dict(showgrid=False, title_standoff=10)
 )
 st.plotly_chart(fig_aid, use_container_width=True)
+
+
 st.markdown("### Interpretation")
 st.markdown("""
 - **Akkar Governorate** has 48 first aid centers, clearly reflecting the highest number within Lebanon.  
