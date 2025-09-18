@@ -6,43 +6,62 @@ import pandas as pd
 import plotly.express as px
 
 # ---------------- Page setup & styling ----------------
-st.set_page_config(page_title="Healthcare in Lebanon", page_icon="🏥", layout="wide")
-
 st.markdown("""
 <style>
-.block-container { padding-top: 1.2rem; padding-bottom: 2rem; }
-.stPlotlyChart { margin-top: .25rem; }
-html, body, [class*="css"] { color: #2A2A2A; }
-h1, h2, h3 { font-weight: 700; }
+/* ---------- GLOBAL STYLING ---------- */
+html, body, [class*="css"] {
+    color: #2A2A2A;
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+}
+
+/* ---------- PAGE PADDING ---------- */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
+/* ---------- HEADINGS ---------- */
+h1, h2, h3 {
+    font-weight: 700;
+    text-align: center;
+    color: #2A2A2A;
+}
+
+/* ---------- PLOTLY CHART MARGINS ---------- */
+.stPlotlyChart {
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+}
+
+/* ---------- MOBILE OPTIMIZATION ---------- */
+@media screen and (max-width: 768px) {
+    .block-container {
+        padding-left: 0.8rem !important;
+        padding-right: 0.8rem !important;
+    }
+
+    h1 {
+        font-size: 1.4rem !important;
+    }
+
+    h2 {
+        font-size: 1.2rem !important;
+    }
+
+    h3 {
+        font-size: 1.05rem !important;
+    }
+
+    .stPlotlyChart {
+        margin-left: -10px;
+        margin-right: -10px;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
-
-# Centered H1
-st.markdown("<h1 style='text-align:center;'>Healthcare in Lebanon</h1>", unsafe_allow_html=True)
-
-# ---------------- Optional: header photo rotator ----------------
-IMAGE_DIR = "images_header"  # put JPG/PNG photos here; safe if empty
-image_files = []
-if os.path.isdir(IMAGE_DIR):
-    image_files = [os.path.join(IMAGE_DIR, f) for f in os.listdir(IMAGE_DIR)
-                   if f.lower().endswith((".jpg", ".jpeg", ".png"))]
-if "carousel_idx" not in st.session_state:
-    st.session_state.carousel_idx = 0
-
-if image_files:
-    idx = st.session_state.carousel_idx % len(image_files)
-    img = Image.open(image_files[idx])
-    dots = " • ".join(["●" if i == idx else "○" for i in range(len(image_files))])
-    st.markdown(f"<p style='text-align:center;margin:0;color:#666'>{idx+1} / {len(image_files)}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align:center;margin:0 0 6px;color:#666'>{dots}</p>", unsafe_allow_html=True)
-    st.image(img, use_container_width=True)
-    c1, c2, c3 = st.columns([1,1,1])
-    with c1:
-        if st.button("◀︎ Previous", key="hero_prev"):
-            st.session_state.carousel_idx = (idx - 1) % len(image_files)
-    with c3:
-        if st.button("Next ▶︎", key="hero_next"):
-            st.session_state.carousel_idx = (idx + 1) % len(image_files)
 
 # ---------------- Load data ----------------
 df = pd.read_csv("healthcareds.csv")
