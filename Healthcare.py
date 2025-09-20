@@ -1,211 +1,202 @@
-# Healthcare.py — final, no sidebar controls, area locked to "Districts and Governorates"
-import os
-from PIL import Image
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---------------- Page setup & styling ----------------
-# Original CSS style
-st.markdown("""
+# ----------------------- Page Setup -----------------------
+st.set_page_config(page_title="Healthcare in Lebanon", page_icon="🏥", layout="wide")
+
+# Sidebar toggles
+with st.sidebar:
+    st.markdown("## 🛠️ Display Settings")
+    mobile_fix = st.checkbox("📱 Enable Mobile View", value=False)
+    dark_mode = st.checkbox("🌙 Enable Dark Mode", value=False)
+
+# Dynamic theming
+background_color = "#1e1e1e" if dark_mode else "#EDF2F7"
+text_color = "#FAFAFA" if dark_mode else "#2A2A2A"
+bar_color_needs = "#82A0FF" if dark_mode else "#4C6EF5"
+bar_color_aid = "#FF8A80" if dark_mode else "#E53935"
+
+# ---------------------- Custom CSS -----------------------
+st.markdown(f"""
 <style>
-.block-container { padding-top: 1.2rem; padding-bottom: 2rem; }
-.stPlotlyChart { margin-top: .25rem; }
-html, body, [class*="css"] { color: #2A2A2A; }
-h1, h2, h3 { font-weight: 700; }
+html, body, [class*="css"] {{
+    color: {text_color};
+    background-color: {background_color};
+}}
+.stPlotlyChart {{
+    margin-top: 1rem;
+}}
+.block-container {{
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    padding-left: {"1rem" if mobile_fix else "4rem"};
+    padding-right: {"1rem" if mobile_fix else "4rem"};
+}}
+h1, h2, h3 {{
+    font-weight: 700;
+    text-align: center;
+    color: {text_color};
+    font-size: {"1.5rem" if mobile_fix else "2rem"};
+}}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- Load data ----------------
+# ---------------------- Header -----------------------
+st.markdown("<h1>Healthcare in Lebanon</h1>", unsafe_allow_html=True)
+
+st.markdown("""## Overview""")
+
+st.markdown(""" "The health sector in Lebanon operates under the leadership of the Ministry of Public Health (MoPH). Complementing this leadership from the UN and NGO sides, the sector is co-led by the World Health Organization (WHO), with coordination efforts facilitated by WHO and Amel Association." """)
+
+# ---------------------- Load Data -----------------------
 df = pd.read_csv("healthcareds.csv")
+if "refArea" in df.columns and "Districts and Governorates" not in df.columns:
+    df["Districts and Governorates"] = df["refArea"].astype(str).str.split("/").str[-1].str.strip()
 
-# Ensure the locked area column exists
-AREA_COL = "Districts and Governorates"
-if AREA_COL not in df.columns:
-    if "refArea" in df.columns:
-        df[AREA_COL] = df["refArea"].astype(str).str.split("/").str[-1].str.strip()
-    else:
-        st.error(f'Required column "{AREA_COL}" is missing and cannot be derived (no "refArea").')
-        st.stop()
-
-# Helper to convert existence columns to 0/1
-def to_binary(series: pd.Series) -> pd.Series:
-    if pd.api.types.is_numeric_dtype(series):
-        return series.fillna(0)
-    yes_vals = {"yes", "y", "true", "t", "1", "exist", "exists"}
-    return series.astype(str).str.strip().str.lower().isin(yes_vals).astype(int)
-
-# Build BOTH metric columns up-front
+# Process metrics
 NEEDS_COL = "Existence of special needs care centers - exists"
-AID_COL   = "Existence of a first aid center - exists"
-if NEEDS_COL not in df.columns:
-    st.error(f'Column "{NEEDS_COL}" not found in your CSV.'); st.stop()
-if AID_COL not in df.columns:
-    st.error(f'Column "{AID_COL}" not found in your CSV.'); st.stop()
+AID_COL = "Existence of a first aid center - exists"
+df["_needs"] = df[NEEDS_COL].astype(str).str.strip().str.lower().isin({"yes", "y", "true", "t", "1", "exist", "exists"}).astype(int)
+df["_aid"] = df[AID_COL].astype(str).str.strip().str.lower().isin({"yes", "y", "true", "t", "1", "exist", "exists"}).astype(int)
 
-df["_needs"] = to_binary(df[NEEDS_COL])
-df["_aid"]   = to_binary(df[AID_COL])
+# ---------------------- Special Needs Chart -----------------------
+st.header("Areas with Special Needs Care Centers in Lebanon")
 
-# ============================
-# PAGE OVERVIEW (under H1)
-# ============================
-st.markdown("### Overview")
+## Areas with Special Needs Care Centers in Lebanon
+st.markdown('<h3 style="text-align:left;">Context</h3>', unsafe_allow_html=True)
 st.markdown("""
-> “The health sector in Lebanon operates under the leadership of the Ministry of Public Health (MoPH). Complementing this leadership from the UN and NGO sides, the sector is co-led by the World Health Organization (WHO), with coordination efforts facilitated by WHO and Amel Association.”
-""")
+According to UN study done in 2023, approximately 10-15% of the Lebanese population have disabilities, either in the form of physical, sensory, cognitive, or mental. Additionally, in 2018, 61.4% of households locally were considered to have at least one member with a disability. The high prevalence of special needs cases demands for accessibility to well-maintained care centers across the various regions in Lebanon.
+The bar chart demonstrates the presence of special needs care centers per area across Lebanon by count, denoted by “N”. The slider is there to indicate which areas have the least to the most accessibility to special needs care centers. The Highlight Areas feature is there to compare selected areas together.""")
 
-st.divider()
-
-# ============================
-# SPECIAL NEEDS SECTION
-# ============================
-st.markdown("<h2 style='text-align:center;'>Areas with Special Needs Care Centers in Lebanon</h2>", unsafe_allow_html=True)
-
-# Aggregate counts (build before using in slider)
-df["_area_needs"] = df[AREA_COL].astype(str).str.strip()
 counts_needs = (
-    df.groupby("_area_needs", dropna=False)["_needs"]
-      .sum(min_count=1).fillna(0).astype(int)
-      .reset_index().rename(columns={"_area_needs": "Area", "_needs": "count"})
-      .sort_values("count", ascending=False)
+    df.groupby("Districts and Governorates")["_needs"]
+    .sum(min_count=1)
+    .fillna(0)
+    .astype(int)
+    .reset_index()
+    .rename(columns={"_needs": "count"})
+    .sort_values("count", ascending=False)
 )
 
-st.markdown("### Context")
-st.markdown("""
-According to a UN study done in 2023, approximately **10–15%** of the Lebanese population have disabilities—physical, sensory, cognitive, or mental. Additionally, in **2018**, **61.4%** of households locally were considered to have at least one member with a disability.  
-The high prevalence of special needs cases demands accessibility to well-maintained care centers across the various regions in Lebanon.
-
-The **bar chart** demonstrates the presence of special needs care centers per area across Lebanon by count, denoted by **“N.”**  
-Use the **Top N** slider to view the most accessible areas.
-""")
-
-# ---- Interactivity (Top N + optional highlight) ----
-c1, c2 = st.columns([2,2])
-with c1:
-    top_n_needs = st.slider("Top N Areas (Special Needs)", 1, min(len(counts_needs), 25), 10)
-with c2:
-    highlight_needs = st.multiselect("Highlight areas (Special Needs)", counts_needs["Area"], key="hi_needs")
-
+top_n_needs = st.slider("Top N (Special Needs)", 1, len(counts_needs), min(10, len(counts_needs)), key="top_n_needs")
+# Slice top N and copy
 counts_needs_f = counts_needs.head(top_n_needs).copy()
-color_map = {True: "#4C6EF5", False: "#CBD5E1"}
-counts_needs_f["__color"] = counts_needs_f["Area"].isin(highlight_needs)
+
+# Select areas to highlight
+highlight_needs = st.multiselect("Highlight Areas (Special Needs)", counts_needs_f["Districts and Governorates"].tolist())
+
+# Assign color based on highlight
+highlight_set = set(highlight_needs)
+counts_needs_f["highlight"] = counts_needs_f["Districts and Governorates"].apply(
+    lambda x: "Highlighted" if x in highlight_set else "Normal"
+)
+
+# Color map
+color_map_needs = {
+    "Highlighted": "#1E40AF",  # Dark blue
+    "Normal": "#60A5FA"        # Light blue
+}
+
 
 fig_needs = px.bar(
     counts_needs_f.sort_values("count"),
-    x="count", y="Area", orientation="h", text="count",
-    color=counts_needs_f["__color"].map(color_map),
-    color_discrete_sequence=px.colors.qualitative.Plotly)
-
-fig_needs.update_traces(
-    textposition="auto",
-    cliponaxis=False
+    x="count",
+    y="Districts and Governorates",
+    orientation="h",
+    text="count",
+    color="highlight",  # use the label
+    color_discrete_map=color_map_needs
 )
-
-
-fig_needs.update_traces(textposition="outside", cliponaxis=False)
+fig_needs.update_traces(textposition="auto", cliponaxis=False)
 fig_needs.update_layout(
-    title={"text":"Areas with Special Needs Care Centers in Lebanon","x":0.5,"xanchor":"center"},
+    title={"text": "Areas with Special Needs Care Centers in Lebanon", "x": 0.5, "xanchor": "center"},
+    paper_bgcolor=background_color,
+    plot_bgcolor=background_color,
+    font_color=text_color,
     xaxis_title="Number of Special Needs Care Centers",
     yaxis_title="Governorate / District",
-    showlegend=False,
-    height=max(500, 28 * len(counts_needs_f)),
-    paper_bgcolor="#EDF2F7", plot_bgcolor="#EDF2F7",
-    margin=dict(l=10, r=20, t=60, b=20),
-    xaxis=dict(gridcolor="rgba(0,0,0,0.08)", zeroline=False),
-    yaxis=dict(showgrid=False, title_standoff=10),
+    height=max(500, 30 * len(counts_needs_f)),
 )
+fig_needs.update_layout(showlegend=False)
 st.plotly_chart(fig_needs, use_container_width=True)
 
 
-
-st.markdown("### Interpretation")
+st.markdown('<h3 style="text-align:left;">Interpretation</h3>', unsafe_allow_html=True)
 st.markdown("""
-- **Mount Lebanon Governorate** and **Matn** contain the highest number of special needs care centers, with **11** and **10** centers each.  
-- **Akkar** and **Baabda** follow with **7** and **6** centers each.  
-- Notably, **Zgharta, Bsharri, Hermel, Danniyeh, and Marjeyoun** are underserved, with only **1** center in each of these regions.
-""")
+- Mount Lebanon Governorate and Matn contain the highest number or special needs care centers, with 11, and 10 centers each.
 
-st.markdown("### The Impact")
+- Akkar and Baabda follow suit with 7 and 6 centers each.
+
+- Notably, Zgharta, Bsharri, Hermel, Danniyeh, and Marjeyoun are underserved, with only 1 special needs care center in each of these regions.""")
+
+st.markdown('<h3 style="text-align:left;">The Impact</h3>', unsafe_allow_html=True)
 st.markdown("""
-The uneven distribution of special needs care centers poses barriers to those with special needs, negatively impacting families.  
-It contributes to **financial strain** (travel to other regions), increased **stress for caregivers**, and **limited opportunities** for children to receive the required support and intervention.
-""")
+The uneven distribution in special needs care centers poses barriers those with special needs, marking a negative impact on families as this contributes to an increase in financial strain, since they must travel to other regions with access to these centers, in addition, this creates stress to caregivers supporting, and consequently leads to limited opportunities for children to receive the required support and intervention.""")
 
-st.divider()
+# ---------------------- First Aid Chart -----------------------
+st.header("Distribution of First Aid Centers Across Lebanese Regions")
 
-# ============================
-# FIRST AID SECTION (Ranked Bar)
-# ============================
-st.markdown("<h2 style='text-align:center;'>Distribution of First Aid Centers Across Lebanese Regions</h2>", unsafe_allow_html=True)
+st.markdown('<h3 style="text-align:left;">Context</h3>', unsafe_allow_html=True)
+st.markdown("""The Lebanese Red Cross is considered the largest first aid assistance in Lebanon, operating via many centers and mobile medical units. In times of emergency, they can be reached using the phone number: 01-366-888 or via the website: https://www.redcross.org.lb/. The Lebanese Red Cross provides First Aid trainings, Basic Life Support (BLS) and Advanced Cardiovascular Life Support (ACLS), to medical professionals and the public. In addition to the Lebanese Red Cross, other organizations such as UNICEF, Medair, and the International Committee of the Red Cross (ICRC) provide similar support and intervention.
 
-# Aggregate counts
-df["_area_aid"] = df[AREA_COL].astype(str).str.strip()
+The bar chart showcases the distribution of first aid centers across Lebanon.  It features multiple interactive tools such as the slider which can be used to manipulate the areas contains a certain number of first aid care centers in addition to the Highlight Areas feature which allows you to select certain areas and compare them in real time.""")
+
 counts_aid = (
-    df.groupby("_area_aid", dropna=False)["_aid"]
-      .sum(min_count=1).fillna(0).astype(int)
-      .reset_index().rename(columns={"_area_aid": "Area", "_aid": "count"})
-      .sort_values("count", ascending=False)
+    df.groupby("Districts and Governorates")["_aid"]
+    .sum(min_count=1)
+    .fillna(0)
+    .astype(int)
+    .reset_index()
+    .rename(columns={"_aid": "count"})
+    .sort_values("count", ascending=False)
 )
 
-st.markdown("### Context")
-st.markdown("""
-The **Lebanese Red Cross** is considered the largest first aid assistance in Lebanon, operating via many centers and mobile medical units.  
-In times of emergency, they can be reached at **01-366-888** or via the website: https://www.redcross.org.lb/.  
-They provide **First Aid** training, **Basic Life Support (BLS)**, and **Advanced Cardiovascular Life Support (ACLS)** to medical professionals and the public.  
-In addition to the Lebanese Red Cross, other organizations such as **UNICEF**, **Medair**, and the **International Committee of the Red Cross (ICRC)** provide similar support and intervention.
-
-The visualization showcases the distribution of first aid centers across Lebanon.  
-Use the **Top N** slider to see areas with the most first aid centers. The **red palette** echoes the Red Cross color.
-""")
-
-d1, d2 = st.columns([2,2])
-with d1:
-    top_n_aid = st.slider("Top N (First Aid)", 1, min(len(counts_aid), 25), 10)
-
-with d2:
-    highlight_aid = st.multiselect("Highlight areas (First Aid)", counts_aid["Area"], key="hi_aid")
+top_n_aid = st.slider("Top N (First Aid)", 1, len(counts_aid), min(10, len(counts_aid)), key="top_n_aid")
+highlight_aid = st.multiselect("Highlight Areas (First Aid)", counts_aid["Districts and Governorates"], key="highlight_aid")
+counts_aid_f = counts_aid.head(top_n_aid).copy()
+counts_aid_f["__color"] = counts_aid_f["Districts and Governorates"].isin(highlight_aid)
 
 counts_aid_f = counts_aid.head(top_n_aid).copy()
-color_map_aid = {True: "#E53935", False: "#F9B5B3"}
-counts_aid_f["__color"] = counts_aid_f["Area"].isin(highlight_aid)
+highlight_set = set(highlight_aid)
 
-# Plot
-fig_aid = px.bar(
-counts_aid_f.sort_values("count"),
-x="count", y="Area", orientation="h", text="count",
-color_discrete_sequence=["#E53935"] # Red
+counts_aid_f["highlight"] = counts_aid_f["Districts and Governorates"].apply(
+    lambda x: "Highlighted" if x in highlight_set else "Normal"
 )
-
-fig_aid.update_traces(
-    textposition="auto",
-    cliponaxis=False
-)
+color_map = {"Highlighted": "#E53935", "Normal": "#FFCDD2"}  # red + light red
 
 
-fig_aid.update_traces(textposition="outside", cliponaxis=False)
+fig_aid = px.bar( 
+    counts_aid_f.sort_values("count"),
+    x="count",
+    y="Districts and Governorates",
+    orientation="h",
+    text="count",
+    color="highlight",
+    color_discrete_map=color_map
+    )
+
+fig_aid.update_traces(textposition="auto", cliponaxis=False)
 fig_aid.update_layout(
-title={"text":"First Aid Centers (Ranked by Area)","x":0.5},
-xaxis_title="Number of First Aid Centers",
-yaxis_title="Governorate / District",
-height=max(500, 28 * len(counts_aid_f)),
-paper_bgcolor="#EDF2F7", plot_bgcolor="#EDF2F7",
-margin=dict(l=10, r=20, t=60, b=20),
-xaxis=dict(gridcolor="rgba(0,0,0,0.08)", zeroline=False),
-yaxis=dict(showgrid=False, title_standoff=10)
+    title={"text": "First Aid Centers (Ranked by Area)", "x": 0.5, "xanchor": "center"},
+    paper_bgcolor=background_color,
+    plot_bgcolor=background_color,
+    font_color=text_color,
+    xaxis_title="Number of First Aid Centers",
+    yaxis_title="Governorate / District",
+    height=max(500, 30 * len(counts_aid_f)),
 )
+fig_aid.update_layout(showlegend=False)
 st.plotly_chart(fig_aid, use_container_width=True)
 
-
-st.markdown("### Interpretation")
+st.markdown('<h3 style="text-align:left;">Interpretation</h3>', unsafe_allow_html=True)
 st.markdown("""
-- **Akkar Governorate** has 48 first aid centers, clearly reflecting the highest number within Lebanon.  
-- Following are **Matn** and **Mount Lebanon Governorate**, containing 28 and 27 centers each; meanwhile, **Sidon District**; and **Aley District** carry 27 and 25 centers, respectively.  
-- Underserved communities are **Hermel** with 1 center, **Tripoli** at 2 centers. The number increases in **Byblos** with 8 centers, as well as **Batroun** and **Hasbaya** with **9** each.
-""")
+- Akkar Governorate clearly reflects the highest number of first aid centers of 48 within Lebanon, with the maroon-red color.
 
-st.markdown("### The Impact")
+- Following suit are Matn and Mount Governorate with 28 and 27 each, Sidon District contains 27, and Aley District at 25 first aid centers.
+
+- Underserved communities include Hermel at 1, Tripoli at 2, Byblos at 8, as well as Batroun and Hasbaya containing 9 first aid centers each. This is also illustrated with the lightest red shade.""")
+
+st.markdown('<h3 style="text-align:left;">The Impact</h3>', unsafe_allow_html=True)
 st.markdown("""
-Areas with limited access to first aid face **dire consequences** during illness or accidents.  
-Conditions and injuries can worsen quickly, with higher risks of **death**, **long-term complications**, and **infection**.  
-The lack of trained responders and necessary supplies puts patients at high risk, this calls for **immediate action** to expand first aid coverage.
-""")
+Based on the above distribution, areas with limited access to first aid share dire consequences to those falling ill or facing accidents. Specifically, conditions and injuries can quickly worsen, with an increased chance of death, long term complications and higher chance of infection. The lack of presence of trained individuals with the necessary supplies puts patients at high risk. This calls for immediate action of increasing the number of first aid centers to cater to the public.""")
